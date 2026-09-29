@@ -1,0 +1,32 @@
+name: quantus-rewards-finder tests
+
+on:
+  push:
+    paths: ["quantus-rewards-finder/**", ".github/workflows/quantus-rewards-finder.yml"]
+  pull_request:
+    paths: ["quantus-rewards-finder/**", ".github/workflows/quantus-rewards-finder.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # 22.04 still ships Python 3.8 for actions/setup-python
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Unit tests (offline)
+        working-directory: quantus-rewards-finder
+        run: python -m unittest discover -s tests -v
+      - name: Smoke test on an empty folder
+        working-directory: quantus-rewards-finder
+        run: |
+          mkdir -p /tmp/empty
+          python quantus_rewards_finder.py --only /tmp/empty --quiet --no-color

@@ -8,6 +8,8 @@ import json
 import os
 import pathlib
 import shutil
+import stat
+import time
 import sys
 import tempfile
 import threading
@@ -216,6 +218,125 @@ class Logs(unittest.TestCase):
         self.assertEqual(res, {})
 
 
+class Robustness(unittest.TestCase):
+    """Cases found in review: formats that were missed, and files that used to stop the scan."""
+
+    def setUp(self):
+        self.tmp = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+
+    def write(self, name, data):
+        p = self.tmp / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        (p.write_bytes if isinstance(data, bytes) else p.write_text)(data)
+        return p
+
+    def test_other_ways_to_write_the_setting(self):
+        self.write("config.v2.json", '{"Args":["--validator","--rewards-address","%s"]}' % addr(40))
+        self.write("compose.yml", "command:\n  - --validator\n  - --rewards-address\n  - %s\n" % addr(41))
+        self.write("run.sh", "quantus-node --validator \\\n  --rewards-address \\\n  %s\n" % addr(42))
+        self.write("miner.env", "MINER_REWARDS_ADDRESS=%s\n" % addr(43))
+        self.write("config.toml", 'rewards_address = "%s"\n' % addr(44))
+        res, _ = found(self.tmp)
+        for n in (40, 41, 42, 43, 44):
+            self.assertIn(addr(n), res, n)
+
+    def test_address_glued_to_following_letters(self):
+        self.write("node.log", "Rewards wormhole address: %sTue\n--rewards-address %sabc\n" % (addr(45), addr(46)))
+        res, _ = found(self.tmp)
+        self.assertIn(addr(45), res)
+        self.assertIn(addr(46), res)
+
+    def test_broken_files_do_not_stop_the_scan(self):
+        good = gzip.compress(("Rewards wormhole address: %s\n" % addr(47)).encode() * 50)
+        self.write("broken.log.gz", good[:40] + b"\x00garbage" + good[60:])
+        self.write(".quantus/wallets/deep.json", "[" * 200000)
+        self.write("plain-but-named.gz", "Rewards wormhole address: %s\n" % addr(48))
+        self.write("zz-last.log", "Rewards wormhole address: %s\n" % addr(49))
+        res, _ = found(self.tmp)
+        self.assertIn(addr(48), res)  # compression is recognised by content, not by name
+        self.assertIn(addr(49), res)  # the scan went on after the broken files
+
+    def test_non_utf8_file_name(self):
+        p = self.tmp / os.fsdecode(b"bad\xff.log")
+        p.write_text("Rewards wormhole address: %s\n" % addr(50))
+        out = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
+        f = qrf.Findings()
+        qrf.walk(f, str(self.tmp), lambda *_: None, set())
+        qrf.print_report(f, False, out=out)
+        self.assertEqual(len(f.addresses), 1)
+        _, data = found(self.tmp)
+        self.assertEqual(len(data["addresses"]), 1)
+
+    def test_control_characters_from_files_are_not_printed(self):
+        self.write("node.log", "Chain specification: \x1b]0;owned\x07\x1b[2J\nRewards wormhole address: %s\n" % addr(51))
+        _, out = run("--only", "--quiet", str(self.tmp))
+        self.assertIn(addr(51), out)
+        self.assertNotIn("\x1b", out)
+
+    def test_wallet_date_is_validated(self):
+        self.write(".quantus/wallets/a.json", json.dumps({"address": addr(52), "created_at": "x" * 100000}))
+        self.write(".quantus/wallets/b.json", json.dumps({"address": addr(53), "created_at": "2025-10-01T08:00:00Z"}))
+        res, _ = found(self.tmp)
+        self.assertIsNone(res[addr(52)]["first_seen"])
+        self.assertEqual(res[addr(53)]["first_seen"], "2025-10-01 08:00:00")
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "needs mkfifo")
+    def test_fifo_does_not_hang(self):
+        os.mkfifo(str(self.tmp / "pipe.log"))
+        f = qrf.Findings()
+        started = time.monotonic()
+        qrf.scan_file(f, str(self.tmp / "pipe.log"), lambda *_: None)
+        self.assertLess(time.monotonic() - started, 2)
+
+    def test_one_huge_line_is_fast_and_complete(self):
+        old = qrf.MAX_CARRY
+        qrf.MAX_CARRY = 4096
+        try:
+            body = "rewards " * 400000 + "Rewards wormhole address: %s " % addr(54) + "rewards " * 1000
+            self.write("minified.json", body)
+            started = time.monotonic()
+            res, _ = found(self.tmp)
+        finally:
+            qrf.MAX_CARRY = old
+        self.assertIn(addr(54), res)
+        self.assertLess(time.monotonic() - started, 10)
+
+    def test_journal_keeps_chain_per_service(self):
+        f = qrf.Findings()
+        sc = qrf.StreamScanner(f, "journald (system)", keyed=True)
+        sc.feed(("2026-01-01T00:00:00+0000 host node-a[1]: Chain specification: Planck\n"
+                 "2026-01-01T00:00:01+0000 host node-b[2]: Chain specification: Quantus Mainnet\n"
+                 "2026-01-01T00:00:02+0000 host node-a[1]: Rewards wormhole address: %s\n" % addr(55)).encode(),
+                final=True)
+        self.assertEqual(f.addresses[acc(55).hex()]["chains"], {"Planck"})
+
+    def test_missing_path_and_bad_json_target_are_reported(self):
+        _, out = run("--only", "--quiet", str(self.tmp / "nope"))
+        self.assertIn("Path not found", out)
+        link = self.tmp / "out.json"
+        os.symlink(str(self.tmp / "elsewhere"), str(link))
+        with self.assertRaises(SystemExit):
+            run("--only", "--quiet", "--json", str(link), str(self.tmp))
+
+    def test_docker_logs_on_stderr_are_read(self):
+        bindir = self.tmp / "bin"
+        bindir.mkdir()
+        fake = bindir / "docker"
+        fake.write_text("#!/bin/sh\n"
+                        'if [ "$1" = ps ]; then printf "abc123\\tquantus-node\\tquantus/node:1\\n"; exit 0; fi\n'
+                        'echo "Rewards wormhole address: %s" >&2\n' % addr(56))
+        fake.chmod(0o755)
+        old = os.environ["PATH"]
+        os.environ["PATH"] = str(bindir) + os.pathsep + old
+        try:
+            f = qrf.Findings()
+            qrf.scan_docker(f, lambda *_: None)
+        finally:
+            os.environ["PATH"] = old
+        self.assertIn(acc(56).hex(), f.addresses)
+
+
 class Output(unittest.TestCase):
     def setUp(self):
         self.f = qrf.Findings()
@@ -251,6 +372,49 @@ class Output(unittest.TestCase):
         qrf.print_report(self.f, False, out=out)
         self.assertIn("https://quantus.watch", out.getvalue())
         self.assertIn("https://x.com/popek_1990", out.getvalue())
+
+
+class AirdropEdgeCases(unittest.TestCase):
+    def serve(self, snapshot, unpaid):
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                body = (snapshot if self.path == "/snapshot" else unpaid).encode()
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *a):
+                pass
+
+        srv = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.server_close)
+        self.addCleanup(srv.shutdown)
+        return "http://127.0.0.1:%d" % srv.server_port
+
+    def scan(self, url):
+        tmp = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, True)
+        (tmp / "node.log").write_text("Rewards wormhole address: %s\n" % addr(60))
+        return found(tmp, "--check-airdrop", "--server", url)[0]
+
+    def test_empty_unpaid_list_is_not_reported_as_paid(self):
+        snap = json.dumps({"rows": [{"address": "t", "account": acc(60).hex(), "amount_hundredths": 500,
+                                     "testnets": ["Dirac"]}]})  # also: account without 0x
+        res = self.scan(self.serve(snap, json.dumps({"rows": []})))
+        self.assertEqual(res[addr(60)]["airdrop"]["status"], "unknown")
+        self.assertEqual(res[addr(60)]["airdrop"]["qtc"], 5.0)
+
+    def test_garbage_answer_keeps_the_report(self):
+        res = self.scan(self.serve('{"rows": [1, null, {"account": null}]}', "not json"))
+        self.assertIn(addr(60), res)
+        self.assertNotIn("airdrop", res[addr(60)])
+
+    def test_null_fields_do_not_crash(self):
+        snap = json.dumps({"rows": [{"address": "t", "account": "0x" + acc(60).hex(),
+                                     "amount_hundredths": None, "testnets": None}]})
+        res = self.scan(self.serve(snap, json.dumps({"rows": [{"address": "t", "status": "unclaimed"}]})))
+        self.assertEqual(res[addr(60)]["airdrop"]["status"], "NOT CLAIMED YET")
 
 
 class Airdrop(unittest.TestCase):
