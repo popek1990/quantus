@@ -39,7 +39,7 @@ import sys
 import time
 import urllib.request
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 # --------------------------------------------------------------------------------------
 # SS58 addresses (Quantus uses network prefix 189, which makes every address start "qz")
@@ -593,66 +593,103 @@ def _section(rec):
     return "other"
 
 
-def _print_record(w, i, r, checked):
-    w("\n %2d. %s\n" % (i, r["address"]))
-    w("     account id   %s\n" % r["account_hex"])
-    w("     chain        %s\n" % (", ".join(sorted(r["chains"])) or "unknown"))
+AUTHOR = "popek_1990"
+AUTHOR_X = "https://x.com/popek_1990"
+PROJECT_SITE = "https://quantus.watch"
+
+
+class Style:
+    """ANSI colours for a terminal; plain text when piped, redirected, or NO_COLOR is set."""
+
+    CODES = {"bold": "1", "dim": "2", "red": "31", "green": "32", "yellow": "33",
+             "blue": "34", "cyan": "36"}
+
+    def __init__(self, enabled):
+        self.enabled = enabled
+
+    def __call__(self, text, *styles):
+        if not self.enabled or not styles:
+            return text
+        return "\033[%sm%s\033[0m" % (";".join(self.CODES[x] for x in styles), text)
+
+
+def use_colour(stream, disabled=False):
+    if disabled or os.environ.get("NO_COLOR"):
+        return False
+    try:
+        return stream.isatty() and os.environ.get("TERM") != "dumb"
+    except (AttributeError, ValueError):
+        return False
+
+
+STATUS_STYLE = {"NOT CLAIMED YET": ("green", "bold"), "claimed, waiting for payout": ("yellow",),
+                "paid out": ("dim",)}
+
+
+def _print_record(w, c, i, r, checked):
+    w("\n %s %s\n" % (c("%2d." % i, "dim"), c(r["address"], "bold")))
+    w("     %s   %s\n" % (c("account id", "dim"), r["account_hex"]))
+    w("     %s        %s\n" % (c("chain", "dim"), c(", ".join(sorted(r["chains"])) or "unknown", "cyan")))
     if r["versions"]:
-        w("     node version %s\n" % ", ".join(sorted(r["versions"])))
-    w("     found as     %s\n" % "; ".join(sorted(r["labels"])))
+        w("     %s %s\n" % (c("node version", "dim"), ", ".join(sorted(r["versions"]))))
+    w("     %s     %s\n" % (c("found as", "dim"), "; ".join(sorted(r["labels"]))))
     if r["first_seen"]:
         span = r["first_seen"] if r["first_seen"] == r["last_seen"] else \
             "%s  ->  %s" % (r["first_seen"], r["last_seen"])
-        w("     seen         %s  (%s)\n" % (span, _times(r["count"])))
+        w("     %s         %s  (%s)\n" % (c("seen", "dim"), span, _times(r["count"])))
     else:
-        w("     seen         %s\n" % _times(r["count"]))
+        w("     %s         %s\n" % (c("seen", "dim"), _times(r["count"])))
     for j, line in enumerate(_sources_text(r["sources"])):
-        w("     %s %s\n" % ("where       " if j == 0 else "            ", line))
+        w("     %s %s\n" % (c("where       ", "dim") if j == 0 else "            ", line))
     if checked:
         a = r.get("airdrop")
         if a is None:
-            w("     airdrop      not on the airdrop list\n")
+            w("     %s      %s\n" % (c("airdrop", "dim"), c("not on the airdrop list", "dim")))
         else:
-            w("     airdrop      %.2f QTC (%s)  -  %s\n"
-              % (a["qtc"], ", ".join(a["testnets"]), a["status"]))
+            w("     %s      %s (%s)  -  %s\n"
+              % (c("airdrop", "dim"), c("%.2f QTC" % a["qtc"], "bold"), ", ".join(a["testnets"]),
+                 c(a["status"], *STATUS_STYLE.get(a["status"], ()))))
 
 
-def print_report(findings, checked, out=None):
-    w = (out or sys.stdout).write
+def print_report(findings, checked, out=None, colour=None):
+    out = out or sys.stdout
+    w = out.write
+    c = Style(use_colour(out) if colour is None else colour)
     recs = sorted(findings.addresses.values(), key=lambda r: (r["first_seen"] or "9999", r["address"]))
     treasury = [r for r in recs if r["kinds"] == {"treasury"}]
     recs = [r for r in recs if r["kinds"] != {"treasury"}]
     s = findings.stats
-    w("\nScanned %d text files and %d other sources, %.2f GB. Skipped %d binary files.\n"
-      % (s["files"], s["sources"], s["bytes"] / 1e9, s["binary"]))
+    w("\n%s\n" % c("Scanned %d text files and %d other sources, %.2f GB. Skipped %d binary files."
+                   % (s["files"], s["sources"], s["bytes"] / 1e9, s["binary"]), "dim"))
     if s["unreadable"]:
-        w("Could not read %d files or folders (permission denied). Run with sudo to include them,\n"
-          "for example /var/lib/quantus or /var/lib/docker. First few: %s\n"
-          % (s["unreadable"], ", ".join(findings.unreadable_examples[:3])))
+        w(c("Could not read %d files or folders (permission denied). Run with sudo to include them,\n"
+            "for example /var/lib/quantus or /var/lib/docker. First few: %s"
+            % (s["unreadable"], ", ".join(findings.unreadable_examples[:3])), "yellow") + "\n")
     if not recs:
         w("\n Nothing found. See 'Nothing found?' in the README for where else to look.\n")
 
     n = 0
+    rule = c("=" * 100, "blue")
     for key, title, explain in SECTIONS:
         group = [r for r in recs if _section(r) == key]
         if not group:
             continue
-        w("\n" + "=" * 100 + "\n")
-        w(" %s: %d\n %s\n" % (title, len(group), explain))
-        w("=" * 100 + "\n")
+        w("\n" + rule + "\n")
+        w(" %s\n %s\n" % (c("%s: %d" % (title, len(group)), "bold", "blue"), c(explain, "dim")))
+        w(rule + "\n")
         for r in group:
             n += 1
-            _print_record(w, n, r, checked)
+            _print_record(w, c, n, r, checked)
 
     if treasury:
-        w("\n Treasury fallback (NOT your addresses)\n")
+        w("\n %s\n" % c("Treasury fallback (NOT your addresses)", "bold", "red"))
         w(" The node ran without a rewards address/preimage, so blocks paid the treasury:\n")
         for r in treasury:
-            w("   %s  on %s  (%s)\n" % (r["address"], ", ".join(sorted(r["chains"])) or "unknown",
+            w("   %s  on %s  (%s)\n" % (c(r["address"], "red"), ", ".join(sorted(r["chains"])) or "unknown",
                                         _times(r["count"])))
 
     if findings.inner_hashes:
-        w("\n Wormhole inner hashes (shown shortened on purpose)\n")
+        w("\n %s\n" % c("Wormhole inner hashes (shown shortened on purpose)", "bold"))
         w(" Planck / mainnet nodes are given an inner hash instead of an address. The node prints\n"
           " the matching address at start-up as 'Rewards wormhole address', listed above if the\n"
           " log still exists. The full value is in the file shown.\n")
@@ -661,7 +698,11 @@ def print_report(findings, checked, out=None):
             for line in _sources_text(rec["sources"], 2):
                 w("       %s\n" % line)
 
-    w("\n These are public addresses. Never paste a seed phrase or secret anywhere to 'check' them.\n")
+    w("\n %s\n" % c("These are public addresses. Never paste a seed phrase or secret anywhere to 'check' them.",
+                     "yellow"))
+    w(" %s %s\n" % (c("Live Quantus data (airdrop progress, hashrate, exchange flows):", "dim"),
+                    c(PROJECT_SITE, "cyan")))
+    w(" %s %s  %s\n" % (c("quantus-rewards-finder by", "dim"), AUTHOR, c(AUTHOR_X, "cyan")))
 
 
 def to_json(findings, checked):
@@ -719,6 +760,8 @@ def main(argv=None):
     ap.add_argument("--server", default=AIRDROP_SERVER, help=argparse.SUPPRESS)
     ap.add_argument("--json", metavar="FILE", help="also write the results as JSON ('-' = stdout)")
     ap.add_argument("--quiet", action="store_true", help="no progress output")
+    ap.add_argument("--no-color", dest="no_colour", action="store_true",
+                    help="plain text output (also: NO_COLOR=1)")
     ap.add_argument("--version", action="version", version="%(prog)s " + __version__)
     args = ap.parse_args(argv)
 
@@ -728,9 +771,11 @@ def main(argv=None):
     if not args.only:
         roots += default_roots()
     if not args.quiet:
-        sys.stderr.write("quantus-rewards-finder %s  -  community tool, not affiliated with the Quantus team\n"
-                         % __version__)
-        sys.stderr.write("Searching: %s\n" % ", ".join(roots))
+        c = Style(use_colour(sys.stderr, args.no_colour))
+        sys.stderr.write("%s %s  -  community tool, not affiliated with the Quantus team\n"
+                         % (c("quantus-rewards-finder", "bold"), __version__))
+        sys.stderr.write("by %s  %s\n" % (AUTHOR, c(AUTHOR_X, "cyan")))
+        sys.stderr.write("%s %s\n" % (c("Searching:", "dim"), ", ".join(roots)))
         if hasattr(os, "geteuid") and os.geteuid() != 0:
             sys.stderr.write("Tip: node logs often live in root-only folders. Re-run with sudo if nothing shows up.\n")
 
@@ -756,7 +801,7 @@ def main(argv=None):
             sys.stderr.write("Could not download the airdrop lists (%s). Showing addresses only.\n" % exc)
 
     if args.json != "-":
-        print_report(findings, checked)
+        print_report(findings, checked, colour=use_colour(sys.stdout, args.no_colour))
     if args.json:
         text = json.dumps(to_json(findings, checked), indent=1, ensure_ascii=False)
         if args.json == "-":

@@ -7,6 +7,10 @@ Not affiliated with the Quantus team.
 |---|---|
 | [quantus-rewards-finder](quantus-rewards-finder/) | Run it on a machine that mined Quantus. It finds every mining rewards address the machine still remembers (node logs, scripts, journal, Docker logs), and can show each address's testnet airdrop status. Read-only, one Python file, never asks for a seed phrase. |
 
+![quantus-rewards-finder scanning a mining machine](quantus-rewards-finder/docs/scan.gif)
+
 By **popek_1990** - [x.com/popek_1990](https://x.com/popek_1990) · [github.com/popek1990](https://github.com/popek1990)
+
+More Quantus data: [quantus.watch](https://quantus.watch) - airdrop progress, network hashrate and exchange flows.
 
 MIT License. See [LICENSE](LICENSE).

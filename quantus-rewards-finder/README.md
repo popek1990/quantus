@@ -6,6 +6,10 @@ Find every Quantus mining rewards address your machine still remembers.
 
 By **popek_1990** - [x.com/popek_1990](https://x.com/popek_1990) · [github.com/popek1990](https://github.com/popek1990)
 
+![quantus-rewards-finder scanning a mining machine](docs/scan.gif)
+
+<sub>Recorded in a real terminal on a demo machine with made-up addresses. No real person's data is shown.</sub>
+
 ---
 
 ## Get it and run it
@@ -113,6 +117,11 @@ Use `--json FILE` to export as JSON (`--json -` prints only JSON, no text report
 
 Adds one line per address: the QTC allocation, testnets and claim status (`NOT CLAIMED YET`, `claimed, waiting for payout`, `paid out`, or `not on the airdrop list`).
 
+![--check-airdrop showing the claim status of each address](docs/airdrop.gif)
+
+<sub>Demo with made-up addresses. The airdrop lists come from a local mock of the server, which is why the
+clip shows `127.0.0.1`; a normal run downloads them from `airdrop-claim.quantus.com`.</sub>
+
 **How it works, so you know your privacy is protected:**
 
 1. The tool downloads two **public** lists from `airdrop-claim.quantus.com`:
@@ -168,6 +177,7 @@ Flags:
   --no-docker               skip docker logs
   --no-processes            skip running processes
   --quiet                   no progress output
+  --no-color                plain text, no colours (also: NO_COLOR=1; off automatically when piped)
   --version                 show version
   --help                    show this message
 ```
@@ -187,6 +197,8 @@ Scanning a busy home folder (hundreds of thousands of files) takes a few minutes
 ```bash
 python3 -m unittest discover -s tests
 ```
+
+![the test suite passing](docs/tests.gif)
 
 The tests run offline with generated addresses. The SS58 code is checked against addresses printed by the official Quantus node binaries, and `--check-airdrop` is tested against a local fake server.
 
@@ -208,3 +220,8 @@ Estimates and evidence, not promises. Airdrop amounts and statuses come from the
 ---
 
 MIT License. See [LICENSE](../LICENSE) for details.
+
+---
+
+**More Quantus data:** [quantus.watch](https://quantus.watch) - airdrop progress, network hashrate and
+exchange flows, updated every hour.

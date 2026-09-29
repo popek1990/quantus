@@ -216,6 +216,43 @@ class Logs(unittest.TestCase):
         self.assertEqual(res, {})
 
 
+class Output(unittest.TestCase):
+    def setUp(self):
+        self.f = qrf.Findings()
+        self.f.add_address("mined", "node log: rewards address", acc(30), "/x/node.log", "Dirac", None, None)
+
+    def test_plain_text_when_not_a_terminal(self):
+        out = io.StringIO()
+        qrf.print_report(self.f, False, out=out)
+        self.assertNotIn("\033[", out.getvalue())
+
+    def test_colour_only_when_asked(self):
+        out = io.StringIO()
+        qrf.print_report(self.f, False, out=out, colour=True)
+        self.assertIn("\033[", out.getvalue())
+        self.assertIn(addr(30), out.getvalue())
+
+    def test_no_color_environment_variable(self):
+        class Tty(io.StringIO):
+            def isatty(self):
+                return True
+        old = os.environ.get("NO_COLOR")
+        os.environ["NO_COLOR"] = "1"
+        try:
+            self.assertFalse(qrf.use_colour(Tty()))
+        finally:
+            if old is None:
+                del os.environ["NO_COLOR"]
+            else:
+                os.environ["NO_COLOR"] = old
+
+    def test_footer_credits(self):
+        out = io.StringIO()
+        qrf.print_report(self.f, False, out=out)
+        self.assertIn("https://quantus.watch", out.getvalue())
+        self.assertIn("https://x.com/popek_1990", out.getvalue())
+
+
 class Airdrop(unittest.TestCase):
     def test_statuses_from_public_lists(self):
         snapshot = {"rows": [
