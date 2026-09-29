@@ -16,19 +16,20 @@ Read the code, run it on your own machine, keep your keys to yourself.
 
 ## Tools
 
-| | Tool | What it does |
-|---|---|---|
-| 🔎 | **[quantus-rewards-finder](quantus-rewards-finder/)** | Mined a testnet and lost track of your rewards address? Run this on the mining machine. It finds every rewards address the machine still remembers and shows its airdrop status. |
+| | Tool | What it does | Needs your seed phrase? |
+|---|---|---|---|
+| 🔎 | **[quantus-rewards-finder](quantus-rewards-finder/)** | Mined a testnet and lost track of your rewards address? Run this on the mining machine. It finds every rewards address the machine still remembers and shows its airdrop status. | **No** |
+| 🌱 | **[quantus-airdrop-checker](quantus-airdrop-checker/)** | Have the seed phrase but not the machine? It derives every address the phrase ever had on the testnets and shows what each one holds in the airdrop, and whether it is still unclaimed. | **Yes** - it stays on your machine, works offline, and is never stored or sent |
 
-More tools are on the way. Each one lives in its own folder with its own README, tests and instructions.
+Each tool lives in its own folder with its own README, tests and instructions.
 
 ## Ground rules
 
 Every tool in this repo follows the same three rules:
 
-- 🔐 **Never asks for a seed phrase or private key.** If something claiming to be from here does, it is a scam.
-- 📖 **Plain code you can read before you run it.** Python or shell, no hidden downloads, no binaries.
-- 🌐 **Nothing leaves your machine without saying so.** Any network access is optional and explained in the tool's README.
+- 🔐 **Your keys stay yours.** A tool that does not need a seed phrase never asks for one. The one that does (the airdrop checker) says so up front, explains why, never stores or sends it, and can run with the network unplugged. Anything else asking for your phrase in our name is a scam.
+- 📖 **Plain code you can read before you run it.** Python or shell, no binaries in this repo. The airdrop checker runs the official Quantus builds, downloaded from Quantus' own GitHub releases and checked against SHA256 hashes pinned in the code.
+- 🌐 **Nothing leaves your machine without saying so.** Network access is only ever a download of public files, and every tool's README lists exactly which.
 
 ## Also useful
 

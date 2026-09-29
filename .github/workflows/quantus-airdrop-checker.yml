@@ -1,0 +1,63 @@
+name: quantus-airdrop-checker tests
+
+on:
+  push:
+    paths: ["quantus-airdrop-checker/**", ".github/workflows/quantus-airdrop-checker.yml", "tools/**"]
+  pull_request:
+    paths: ["quantus-airdrop-checker/**", ".github/workflows/quantus-airdrop-checker.yml", "tools/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    # parser, amounts, claim status and warnings: synthetic data, no network, no binaries
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Seed-phrase parser
+        working-directory: quantus-airdrop-checker
+        run: python tests/test_parser.py
+      - name: Amounts, claim status and warnings
+        working-directory: quantus-airdrop-checker
+        run: python tests/test_match.py
+
+  full:
+    # the whole tool with the eight official quantus-node builds (they need glibc 2.39 = Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cache the official builds (~220 MB, SHA256-pinned in the script)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/quantus-airdrop-checker/nodes
+          key: quantus-nodes-${{ hashFiles('quantus-airdrop-checker/quantus_airdrop_checker.py') }}
+          restore-keys: quantus-nodes-
+      - name: Download and verify the official data
+        working-directory: quantus-airdrop-checker
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NO_COLOR: "1"
+        run: ./quantus_airdrop_checker.sh --download-only
+      - name: Self-test (the builds reproduce the published test addresses)
+        working-directory: quantus-airdrop-checker
+        run: ./quantus_airdrop_checker.sh --self-test --no-color
+      - name: Whole run in a terminal - nothing pasted may ever be printed
+        working-directory: quantus-airdrop-checker
+        run: python tests/test_end_to_end.py
+      - name: The run that finds something
+        working-directory: quantus-airdrop-checker
+        run: python tests/test_found.py
+      - name: Repository guard (no addresses, nothing shaped like a seed phrase)
+        run: tools/scan-secrets.sh

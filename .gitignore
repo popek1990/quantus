@@ -1,0 +1,5 @@
+# Repo-wide safety net: encrypted reports and caches never go into git
+*.gpg
+*-report-*.md.gpg
+__pycache__/
+*.pyc

@@ -179,6 +179,8 @@ You claim with the official Quantus app or `quantus-cli`, never on a website.
 * **Old backups or disk images:** add them as extra paths. Example: `sudo python3 quantus_rewards_finder.py /mnt/old-disk`
 * **Logs already rotated away?** The address may still be in the start script or systemd unit
   (`/etc/systemd/system/*.service`). The tool reads those too.
+* **No longer have the machine, but have the seed phrase?** Try
+  [quantus-airdrop-checker](../quantus-airdrop-checker/): it derives every address a phrase ever had on the testnets.
 * **Mined through a pool?** Then the blocks went to the pool's address, not yours.
 * **Ran without `--rewards-address`?** Older nodes then paid the treasury. The tool lists this as a treasury fallback.
 * Still nothing? The Quantus team has the full chain history. Ask on their official channels. Give them your

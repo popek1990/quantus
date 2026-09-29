@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+# reports written by the checker - never commit them
+quantus-airdrop-report-*
+quant-checker-report-*
+*.gpg
