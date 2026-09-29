@@ -8,7 +8,7 @@
 
 **Community tool. Not affiliated with the Quantus team.**
 
-By popek_1990 - [x.com/popek_1990](https://x.com/popek_1990) · [github.com/popek1990](https://github.com/popek1990)
+By popek_1990 · [x.com/popek_1990](https://x.com/popek_1990)
 
 ![quantus-rewards-finder scanning a mining machine](docs/scan.gif)
 
@@ -242,10 +242,7 @@ Quantus Network.
 
 ## Author
 
-popek_1990
-
-* X / Twitter: [x.com/popek_1990](https://x.com/popek_1990)
-* GitHub: [github.com/popek1990](https://github.com/popek1990)
+popek_1990 · [x.com/popek_1990](https://x.com/popek_1990)
 
 MIT License. See [LICENSE](../LICENSE).
 

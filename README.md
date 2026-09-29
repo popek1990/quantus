@@ -1,26 +1,45 @@
+<div align="center">
+
+<img src="assets/banner.png" alt="quantus - community tools for Quantus miners" width="820">
+
 # quantus
 
-Small, open-source tools for people who mine or hold [Quantus](https://quantus.com) (QTC).
-Community project, not affiliated with the Quantus team.
+**Small, open-source tools for people who mine or hold [Quantus](https://quantus.com) (QTC).**
+
+Read the code, run it on your own machine, keep your keys to yourself.
+
+[Tools](#tools) · [Ground rules](#ground-rules) · [quantus.watch](https://quantus.watch) · [x.com/popek_1990](https://x.com/popek_1990)
+
+</div>
+
+---
 
 ## Tools
 
-| Tool | What it does |
-|---|---|
-| [quantus-rewards-finder](quantus-rewards-finder/) | Finds the mining rewards addresses a machine still remembers, and shows their testnet airdrop status. |
+| | Tool | What it does |
+|---|---|---|
+| 🔎 | **[quantus-rewards-finder](quantus-rewards-finder/)** | Mined a testnet and lost track of your rewards address? Run this on the mining machine. It finds every rewards address the machine still remembers and shows its airdrop status. |
 
-Each tool lives in its own folder with its own README, tests and instructions.
+More tools are on the way. Each one lives in its own folder with its own README, tests and instructions.
 
-## Ground rules for every tool here
+## Ground rules
 
-- Never asks for a seed phrase or private key.
-- Plain Python or shell you can read before running it, no hidden downloads.
-- Anything sent over the network is explained in the tool's README.
+Every tool in this repo follows the same three rules:
 
-## Author
+- 🔐 **Never asks for a seed phrase or private key.** If something claiming to be from here does, it is a scam.
+- 📖 **Plain code you can read before you run it.** Python or shell, no hidden downloads, no binaries.
+- 🌐 **Nothing leaves your machine without saying so.** Any network access is optional and explained in the tool's README.
 
-popek_1990 · [x.com/popek_1990](https://x.com/popek_1990) · [github.com/popek1990](https://github.com/popek1990)
+## Also useful
 
-More Quantus data: [quantus.watch](https://quantus.watch) - airdrop progress, network hashrate and exchange flows.
+📊 **[quantus.watch](https://quantus.watch)** - live Quantus data: airdrop progress, network hashrate and exchange flows.
 
-MIT License. See [LICENSE](LICENSE).
+---
+
+<div align="center">
+
+Made by popek_1990 · [x.com/popek_1990](https://x.com/popek_1990)
+
+Community project, not affiliated with the Quantus team · [MIT License](LICENSE)
+
+</div>
