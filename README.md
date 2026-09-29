@@ -1,15 +1,25 @@
 # quantus
 
-Free tools for people who mine or hold [Quantus](https://quantus.com).
-Community tool. Not affiliated with the Quantus team.
+Small, open-source tools for people who mine or hold [Quantus](https://quantus.com) (QTC).
+Community project, not affiliated with the Quantus team.
+
+## Tools
 
 | Tool | What it does |
 |---|---|
-| [quantus-rewards-finder](quantus-rewards-finder/) | Did you mine a Quantus testnet and forget your rewards address? Run this on the mining machine. It finds every rewards address the machine still remembers (in node logs, scripts, the journal and Docker logs). It can also show the testnet airdrop status of each address. It only reads files, it is one Python file, and it never asks for a seed phrase. |
+| [quantus-rewards-finder](quantus-rewards-finder/) | Finds the mining rewards addresses a machine still remembers, and shows their testnet airdrop status. |
 
-![quantus-rewards-finder scanning a mining machine](quantus-rewards-finder/docs/scan.gif)
+Each tool lives in its own folder with its own README, tests and instructions.
 
-By popek_1990 - [x.com/popek_1990](https://x.com/popek_1990) · [github.com/popek1990](https://github.com/popek1990)
+## Ground rules for every tool here
+
+- Never asks for a seed phrase or private key.
+- Plain Python or shell you can read before running it, no hidden downloads.
+- Anything sent over the network is explained in the tool's README.
+
+## Author
+
+popek_1990 · [x.com/popek_1990](https://x.com/popek_1990) · [github.com/popek1990](https://github.com/popek1990)
 
 More Quantus data: [quantus.watch](https://quantus.watch) - airdrop progress, network hashrate and exchange flows.
 
